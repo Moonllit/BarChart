@@ -1,0 +1,2 @@
+rootProject.name='Bar Chart View'
+include ':app'

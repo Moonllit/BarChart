@@ -11,18 +11,19 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         val arrayList = listOf(
-                BarData("03", 80000f),
-                BarData("04", 75000f),
-                BarData("05", 65674f),
-                BarData("06", 55000f),
-                BarData("07", 43000f),
-                BarData("08", 38000f),
-                BarData("09", 30000f),
-                BarData("10", 25000f),
-                BarData("11", 15000f),
-                BarData("12", 6000f)
+            BarData("01/01/2020", 80000f),
+            BarData("01/02/2020", 75000f),
+            BarData("01/03/2020", 65674f),
+            BarData("01/06/2020", 55000f),
+            BarData("01/07/2020", 43000f),
+            BarData("01/05/2020", 38000f),
+            BarData("01/09/2020", 30000f),
+            BarData("01/10/2020", 25000f),
+            BarData("01/11/2020", 15000f),
+            BarData("01/02/2020", 6000f),
+            BarData("01/04/2020", 500f)
         )
 
-        chart.data = arrayList
+        chart.barData = arrayList
     }
 }

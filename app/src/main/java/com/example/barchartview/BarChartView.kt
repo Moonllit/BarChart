@@ -1,15 +1,19 @@
 package com.example.barchartview
 
+import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.*
+import android.os.Looper
 import android.util.AttributeSet
-import android.util.Log
+import android.util.DisplayMetrics
 import android.util.TypedValue
 import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.View
 import androidx.core.content.res.ResourcesCompat
 import java.text.DecimalFormat
+import kotlin.math.sqrt
+
 
 class BarChartView(context: Context, attrs: AttributeSet) : View(context, attrs) {
 
@@ -20,102 +24,96 @@ class BarChartView(context: Context, attrs: AttributeSet) : View(context, attrs)
         attrs
     )
 
-    var data: List<BarData> = listOf()
+    var barData: List<BarData> = listOf()
         set(value) {
             field = value
             maxValueOfData = Float.MIN_VALUE
-            for (bar in data) {
+            for (bar in barData) {
                 if (maxValueOfData < bar.value) maxValueOfData = bar.value
             }
             findMaxWidthOfText()
             invalidate()
         }
 
-    var selectedBarColor: Int = Color.parseColor("#53c283")
+    var selectedBarColor: Int = 0
         set(value) {
             field = value
             invalidate()
         }
 
-    var barColor: Int = Color.parseColor("#e1e5e7")
+    var barColor: Int = 0
         set(value) {
             field = value
             invalidate()
         }
 
-    var outerBarCircleColor: Int = Color.parseColor("#53c283")
+    var outerBarCircleColor: Int = 0
         set(value) {
             field = value
             invalidate()
         }
 
-    var innerBarCircleColor: Int = Color.parseColor("#ffffff")
+    var innerBarCircleColor: Int = 0
         set(value) {
             field = value
             invalidate()
         }
 
-    var textColor: Int = Color.parseColor("#96a6a7")
+    var textColor: Int = 0
         set(value) {
             field = value
             invalidate()
         }
 
-    var selectedBarLabelColor: Int = Color.parseColor("#53c283")
+    var selectedBarLabelColor: Int = 0
         set(value) {
             field = value
             invalidate()
         }
 
-    var barCornerRadius: Float = 20f
+    var selectedBarTextLabelColor: Int = 0
         set(value) {
             field = value
             invalidate()
         }
 
-    var barCircleRadius: Float = 6f
+    var barCornerRadius: Float = 0f
         set(value) {
             field = value
             invalidate()
         }
 
-    var axisStrokeWidth: Float = 3f
+    var axisStrokeWidth: Float = 0f
         set(value) {
             field = value
             invalidate()
         }
 
-    var axisFontSize: Int = 12
+    var fontSize: Int = 12
         set(value) {
             field = value
             invalidate()
         }
 
-    var textFontId: Int = R.font.roboto_medium
+    var textFontId: Int = R.font.roboto_regular
         set(value) {
             field = value
             invalidate()
         }
 
-    var maxValueCountOnYAxis: Int = 6
+    var textLabelFontId: Int = R.font.roboto_medium
         set(value) {
             field = value
             invalidate()
         }
 
-    var maxDataBarCountOnXAxis: Int = 6
+    var maxValueCountOnYAxis: Int = 0
         set(value) {
             field = value
             invalidate()
         }
 
-    var marginXAxisAndValue: Float = 10f
-        set(value) {
-            field = value
-            invalidate()
-        }
-
-    var marginYAxisAndValue: Float = 35f
+    var maxVisibleBarCount: Int = 0
         set(value) {
             field = value
             invalidate()
@@ -123,11 +121,10 @@ class BarChartView(context: Context, attrs: AttributeSet) : View(context, attrs)
 
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val textLabelPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val axisPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val path = Path()
 
-    private var barCornerRadiusInDp = 0f
-    private var barCircleRadiusInDp = 0f
     private var marginXAxisAndValueInDp = 0f
     private var marginYAxisAndValueInDp = 0f
 
@@ -136,32 +133,104 @@ class BarChartView(context: Context, attrs: AttributeSet) : View(context, attrs)
     private var maxWidthOfYAxisText = 0
     private var maxHeightOfXAxisText = 0
 
-    private val barFigures = arrayListOf<RectF>()
-    private var clicked: Boolean = false
-    private var rectIndex = 0
+    private val barRects = arrayListOf<RectF>()
+    private var isBarClicked: Boolean = false
+    private var clickedBarRectIndex = -1
 
-    var lastScrollPos = 0f
+    private var barAndVacantSpaceCount = 0
+    private var barWidth = 0
+    private var defaultBarWidth = 0
+    private var barAxisWidth = 0
+
+    private var isFirstLaunch = true
+    private var currentMonthBarIndex: Int = -1
+
+
+    private var tapDownX = 0f
+    private var tapDownY = 0f
+    private var lastScrollPos = 0f
     private val gestureDetector by lazy {
         GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
+
+            override fun onDown(e: MotionEvent): Boolean {
+                tapDownX = e.x
+                tapDownY = e.y
+                return true
+            }
+
             override fun onScroll(
                 e1: MotionEvent,
                 e2: MotionEvent,
                 distanceX: Float,
                 distanceY: Float
             ): Boolean {
-                lastScrollPos += distanceX
-                scrollX = lastScrollPos.toInt()
+                val lastScrollPosInDp = dpToPixels(context, lastScrollPos)
+
+                if (barData.size <= maxVisibleBarCount) return true
+
+                if (lastScrollPosInDp >= barAxisWidth) {
+                    if (e1.x < e2.x) {
+                        lastScrollPos += distanceX
+                        scrollX = lastScrollPos.toInt()
+                    }
+                } else if (lastScrollPosInDp <= 0) {
+                    if (e1.x > e2.x) {
+                        lastScrollPos += distanceX
+                        scrollX = lastScrollPos.toInt()
+                    }
+                } else {
+                    lastScrollPos += distanceX
+                    scrollX = lastScrollPos.toInt()
+                }
+
                 return true
             }
         })
     }
 
     init {
-        marginXAxisAndValueInDp = dpToPixels(context, marginXAxisAndValue)
-        marginYAxisAndValueInDp = dpToPixels(context, marginYAxisAndValue)
+        context.theme.obtainStyledAttributes(
+            attrs,
+            R.styleable.BarChartView,
+            0, 0
+        ).apply {
+            try {
+                selectedBarColor =
+                    getColor(R.styleable.BarChartView_selectedBarColor, Color.parseColor("#53c283"))
+                barColor = getColor(R.styleable.BarChartView_barColor, Color.parseColor("#e1e5e7"))
+                outerBarCircleColor = getColor(
+                    R.styleable.BarChartView_outerBarCircleColor,
+                    Color.parseColor("#53c283")
+                )
+                innerBarCircleColor =
+                    getColor(
+                        R.styleable.BarChartView_innerBarCircleColor,
+                        Color.parseColor("#ffffff")
+                    )
+                textColor =
+                    getColor(R.styleable.BarChartView_textColor, Color.parseColor("#96a6a7"))
+                selectedBarLabelColor =
+                    getColor(
+                        R.styleable.BarChartView_selectedBarLabelColor,
+                        Color.parseColor("#f6f8f9")
+                    )
+                selectedBarTextLabelColor =
+                    getColor(
+                        R.styleable.BarChartView_selectedBarTextLabelColor,
+                        Color.parseColor("#2c3e50")
+                    )
+                barCornerRadius = getDimension(R.styleable.BarChartView_barCornerRadius, 20F)
+                axisStrokeWidth = getDimension(R.styleable.BarChartView_axisStrokeWidth, 3F)
+                maxValueCountOnYAxis = getInteger(R.styleable.BarChartView_maxValueCountOnYAxis, 6)
+                maxVisibleBarCount = getInteger(R.styleable.BarChartView_maxVisibleBarCount, 6)
+            } finally {
+                recycle()
+            }
+        }
 
-        barCornerRadiusInDp = dpToPixels(context, barCornerRadius)
-        barCircleRadiusInDp = dpToPixels(context, barCircleRadius)
+        marginXAxisAndValueInDp = dpToPixels(context, 10f)
+        marginYAxisAndValueInDp = dpToPixels(context, 35f)
+        defaultBarWidth = dpToPixels(context, 15f).toInt()
 
         initPaint()
     }
@@ -173,23 +242,27 @@ class BarChartView(context: Context, attrs: AttributeSet) : View(context, attrs)
         axisPaint.strokeWidth = axisStrokeWidth
 
         textPaint.typeface = ResourcesCompat.getFont(context, textFontId)
-        textPaint.textSize = dpToPixels(context, axisFontSize.toFloat())
+        textPaint.textSize = dpToPixels(context, fontSize.toFloat())
         textPaint.color = textColor
+
+        textLabelPaint.typeface = ResourcesCompat.getFont(context, textLabelFontId)
+        textLabelPaint.textSize = dpToPixels(context, fontSize.toFloat())
+        textLabelPaint.color = selectedBarTextLabelColor
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.action) {
-            MotionEvent.ACTION_DOWN -> {
-                rectIndex = getRectIndexFor(x, y)
-            }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                val finalIndex = getRectIndexFor(x, y)
-                if (finalIndex == rectIndex) {
+                val upX = event.x
+                val upY = event.y
+                if (sqrt(((upX - tapDownX) * (upX - tapDownX) + (upY - tapDownY) * (upY - tapDownY)).toDouble()) < 10) {
                     onClick(event)
                 }
             }
         }
-        gestureDetector.onTouchEvent(event)
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            return gestureDetector.onTouchEvent(event)
+        }
         return true
     }
 
@@ -202,7 +275,7 @@ class BarChartView(context: Context, attrs: AttributeSet) : View(context, attrs)
         maxHeightOfXAxisText = Int.MIN_VALUE
 
         val bounds = Rect()
-        for (bar in data) {
+        for (bar in barData) {
             val currentTextWidth = textPaint.measureText((bar.value).toString())
             if (maxWidthOfYAxisText < currentTextWidth) maxWidthOfYAxisText =
                 currentTextWidth.toInt()
@@ -248,19 +321,34 @@ class BarChartView(context: Context, attrs: AttributeSet) : View(context, attrs)
         val usableViewWidth = width - paddingLeft - paddingRight
         val origin: Point = getOrigin()
 
-        drawAxis(canvas, origin, usableViewWidth)
-        if (data.isEmpty()) return
+        barAndVacantSpaceCount = if (barData.size <= maxVisibleBarCount) {
+            (barData.size * 2 shl 1)
+        } else {
+            maxVisibleBarCount * 2 shl 1
+        }
 
-        //draw bar chart
-        barFigures.clear()
-        drawBarChart(canvas, usableViewHeight, usableViewWidth, origin)
+        barWidth = if (barData.size < maxVisibleBarCount)
+            defaultBarWidth else (usableViewWidth - maxWidthOfYAxisText) / barAndVacantSpaceCount
+        barAxisWidth = origin.x + (barData.size * 4) * barWidth
+
+        drawAxis(canvas, origin)
+        if (barData.isEmpty()) return
+
+        barRects.clear()
+        drawBarChart(canvas, usableViewHeight, origin)
+
+        if (isFirstLaunch && barData.size > maxVisibleBarCount && currentMonthBarIndex >= maxVisibleBarCount) {
+            scrollX = barRects[currentMonthBarIndex].left.toInt() / 2
+            isFirstLaunch = false
+            lastScrollPos = scrollX.toFloat()
+        }
     }
 
-    private fun drawAxis(canvas: Canvas, origin: Point, usableViewWidth: Int) {
+    private fun drawAxis(canvas: Canvas, origin: Point) {
         canvas.drawLine(
             origin.x.toFloat(),
             origin.y.toFloat(),
-            origin.x + usableViewWidth - (maxWidthOfYAxisText + marginYAxisAndValue),
+            barAxisWidth.toFloat(),
             origin.y.toFloat(),
             axisPaint
         )
@@ -269,107 +357,129 @@ class BarChartView(context: Context, attrs: AttributeSet) : View(context, attrs)
     private fun drawBarChart(
         canvas: Canvas,
         usableViewHeight: Int,
-        usableViewWidth: Int,
         origin: Point
     ) {
-        // количество столбцов
-        val barAndVacantSpaceCount = if (data.size <= maxDataBarCountOnXAxis) {
-            (data.size * 2 shl 1)
-        } else {
-            maxDataBarCountOnXAxis * 2 shl 1
-        }
-        val widthFactor: Int = (usableViewWidth - maxWidthOfYAxisText) / barAndVacantSpaceCount
         var x1: Int
         var x2: Int
         var y1: Int
         var y2: Int
-        val maxValue: Float = maxValueOfData
 
-        for (index in 0 until data.size * 2 - 1) {
+        val minHeight = dpToPixels(context, 35f)
+
+        for (index in 0 until barData.size * 2 - 1) {
             if (index % 2 == 0) { // draw data bar
-                x1 = origin.x + ((index shl 1) + 1) * widthFactor
-                x2 = origin.x + ((index shl 1) + 2) * widthFactor
-                val barHeight =
-                    ((usableViewHeight - getXAxisLabelAndMargin()) * data[index shr 1].value / maxValue).toInt()
+                x1 = origin.x + ((index shl 1) + 1) * barWidth
+                x2 = origin.x + ((index shl 1) + 2) * barWidth
+                var barHeight =
+                    ((usableViewHeight - getXAxisLabelAndMargin()) * barData[index shr 1].value / maxValueOfData).toInt()
+                if (barHeight < minHeight) barHeight = minHeight.toInt()
                 y1 = origin.y - barHeight
                 y2 = origin.y - marginXAxisAndValueInDp.toInt()
 
                 val rect = RectF(x1.toFloat(), y1.toFloat(), x2.toFloat(), y2.toFloat())
-                barFigures.add(rect)
+                barRects.add(rect)
 
                 paint.color = barColor
-                canvas.drawRoundRect(rect, barCornerRadiusInDp, barCornerRadiusInDp, paint)
+                canvas.drawRoundRect(rect, barCornerRadius, barCornerRadius, paint)
 
+                val barWidthInDp = pixelsToDp(context, barWidth.toFloat())
                 paint.color = outerBarCircleColor
                 canvas.drawCircle(
                     (x1 + x2) / 2f,
-                    y1.toFloat() + barCircleRadiusInDp,
-                    barCircleRadiusInDp,
+                    y1.toFloat() + barWidthInDp,
+                    barWidthInDp,
                     paint
                 )
 
                 paint.color = innerBarCircleColor
                 canvas.drawCircle(
                     (x1 + x2) / 2f,
-                    y1.toFloat() + barCircleRadiusInDp,
-                    barCircleRadiusInDp / 2,
+                    y1.toFloat() + barWidthInDp,
+                    barWidthInDp / 2f,
                     paint
                 )
 
-                showXAxisLabel(origin, data[index shr 1].xAxisName, x1 + (x2 - x1) / 2, canvas)
+                showXAxisLabel(origin, barData[index shr 1].xAxisName, x1 + (x2 - x1) / 2, canvas)
+
+                if (barData[index shr 1].isCurrentMonth() && clickedBarRectIndex == -1) {
+                    currentMonthBarIndex = index shr 1
+                    drawHighlightBar(canvas, index shr 1)
+                }
 
             } else { // draw empty bar
-                x1 = origin.x + ((index shl 1) + 1) * widthFactor
-                x2 = origin.x + ((index shl 1) + 2) * widthFactor
-                val barHeight =
-                    ((usableViewHeight - getXAxisLabelAndMargin()) * data[index shr 1].value / maxValue).toInt()
+                x1 = origin.x + ((index shl 1) + 1) * barWidth
+                x2 = origin.x + ((index shl 1) + 2) * barWidth
+                var barHeight =
+                    ((usableViewHeight - getXAxisLabelAndMargin()) * barData[index shr 1].value / maxValueOfData).toInt()
+                if (barHeight < minHeight) barHeight = minHeight.toInt()
                 y1 = origin.y - barHeight
                 y2 = origin.y - marginXAxisAndValueInDp.toInt()
 
                 val rect = RectF(x1.toFloat(), y1.toFloat(), x2.toFloat(), y2.toFloat())
                 paint.color = barColor
-                canvas.drawRoundRect(rect, barCornerRadiusInDp, barCornerRadiusInDp, paint)
+                canvas.drawRoundRect(rect, barCornerRadius, barCornerRadius, paint)
             }
         }
 
-        if (clicked && rectIndex >= 0) drawHighlightBar(canvas)
+        if (isBarClicked && clickedBarRectIndex >= 0) drawHighlightBar(canvas, clickedBarRectIndex)
 
         showYAxisLabels(origin, usableViewHeight - getXAxisLabelAndMargin(), canvas)
     }
 
-    private fun drawHighlightBar(canvas: Canvas) {
-        log("drawHighlightBar() index: $rectIndex, array size: ${barFigures.size}")
-        if (rectIndex == -1) return
+    private fun drawHighlightBar(canvas: Canvas, barIndex: Int) {
+        if (barIndex == -1) return
 
-        val rect = barFigures[rectIndex]
+        val rect = barRects[barIndex]
 
         paint.color = selectedBarColor
-        canvas.drawRoundRect(rect, barCornerRadiusInDp, barCornerRadiusInDp, paint)
+        canvas.drawRoundRect(rect, barCornerRadius, barCornerRadius, paint)
 
         paint.color = innerBarCircleColor
+        val barWidthInDp = pixelsToDp(context, barWidth.toFloat())
         canvas.drawCircle(
             rect.centerX(),
-            rect.top + barCircleRadiusInDp,
-            barCircleRadiusInDp / 2,
+            rect.top + barWidthInDp,
+            barWidthInDp / 2f,
             paint
         )
 
-        drawHighlightBarLabel(canvas, rect)
+        drawHighlightBarLabel(canvas, rect, barData[barIndex].value.toString())
     }
 
-    private fun drawHighlightBarLabel(canvas: Canvas, rect: RectF) {
-        val halfBar = rect.width() / 2
+    private fun drawHighlightBarLabel(canvas: Canvas, barRect: RectF, label: String) {
+        val halfBar = barRect.width() / 2
 
+        val labelTriangleTop = barRect.top - barRect.width()
         path.apply {
             reset()
-            moveTo(rect.centerX(), rect.top - 10)
-            lineTo(rect.centerX() + halfBar, rect.top - rect.width())
-            lineTo(rect.centerX() - halfBar, rect.top - rect.width())
+            moveTo(barRect.centerX(), barRect.top - 10)
+            lineTo(barRect.centerX() + halfBar, labelTriangleTop)
+            lineTo(barRect.centerX() - halfBar, labelTriangleTop)
             close()
         }
 
         paint.color = selectedBarLabelColor
         canvas.drawPath(path, paint)
+
+        val textBounds = Rect()
+        textLabelPaint.getTextBounds(label, 0, label.length, textBounds)
+
+        val margin = dpToPixels(context, 12f)
+        val labelRect = RectF(
+            barRect.centerX() - textBounds.width() / 2 - margin,
+            labelTriangleTop - textBounds.height() - margin * 2,
+            barRect.centerX() + textBounds.width() / 2 + margin,
+            labelTriangleTop
+        )
+        canvas.drawRoundRect(labelRect, margin, margin, paint)
+
+        textLabelPaint.color = selectedBarTextLabelColor
+        canvas.drawText(
+            label,
+            labelRect.centerX() - textBounds.width() / 2,
+            labelRect.centerY() + textBounds.height() / 2,
+            textLabelPaint
+        )
     }
 
     private fun getFormattedValue(value: Float): String {
@@ -428,7 +538,7 @@ class BarChartView(context: Context, attrs: AttributeSet) : View(context, attrs)
     ) {
         val bounds = Rect()
         textPaint.getTextBounds(label, 0, label.length, bounds)
-        val y: Int = origin.y + marginXAxisAndValueInDp.toInt() + maxHeightOfXAxisText
+        val y = origin.y + marginXAxisAndValueInDp.toInt() + maxHeightOfXAxisText
         val x = centerX - bounds.width() / 2
 
         canvas.drawText(label, x.toFloat(), y.toFloat(), textPaint)
@@ -449,7 +559,7 @@ class BarChartView(context: Context, attrs: AttributeSet) : View(context, attrs)
      * @return origin's coordinates
      */
     private fun getOrigin(): Point {
-        return if (data.isNotEmpty()) {
+        return if (barData.isNotEmpty()) {
             Point(
                 paddingLeft + maxWidthOfYAxisText + marginYAxisAndValueInDp.toInt(),
                 height - paddingBottom - getXAxisLabelAndMargin()
@@ -462,28 +572,29 @@ class BarChartView(context: Context, attrs: AttributeSet) : View(context, attrs)
         }
     }
 
+    private fun onClick(event: MotionEvent) {
+        val x = event.x + lastScrollPos
+        val y = event.y
+
+        clickedBarRectIndex = getRectIndexFor(x, y)
+        isBarClicked = true
+        invalidate()
+    }
+
     private fun getRectIndexFor(x: Float, y: Float): Int {
-        barFigures.forEachIndexed { index, rectF ->
+        barRects.forEachIndexed { index, rectF ->
             if (rectF.contains(x, y)) return index
         }
 
         return -1 // x, y do not lie in our view
     }
 
-    private fun onClick(event: MotionEvent) {
-        val x = event.x
-        val y = event.y
-        rectIndex = getRectIndexFor(x, y)
-        clicked = true
-        invalidate()
-    }
-
-    private fun log(message: String) {
-        Log.i(this::class.java.simpleName, message)
-    }
-
     private fun dpToPixels(context: Context, dpValue: Float): Float {
         val metrics = context.resources.displayMetrics
         return TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, dpValue, metrics)
+    }
+
+    private fun pixelsToDp(context: Context, px: Float): Float {
+        return px / (context.resources.displayMetrics.densityDpi.toFloat() / DisplayMetrics.DENSITY_DEFAULT)
     }
 }

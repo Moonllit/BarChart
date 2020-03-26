@@ -140,6 +140,7 @@ class BarChartView(context: Context, attrs: AttributeSet) : View(context, attrs)
     private var barAndVacantSpaceCount = 0
     private var barWidth = 0
     private var defaultBarWidth = 0
+    private var minBarHeight = 0
     private var barAxisWidth = 0
 
     private var isFirstLaunch = true
@@ -231,6 +232,7 @@ class BarChartView(context: Context, attrs: AttributeSet) : View(context, attrs)
         marginXAxisAndValueInDp = dpToPixels(context, 10f)
         marginYAxisAndValueInDp = dpToPixels(context, 35f)
         defaultBarWidth = dpToPixels(context, 15f).toInt()
+        minBarHeight = dpToPixels(context, 35f).toInt()
 
         initPaint()
     }
@@ -364,15 +366,13 @@ class BarChartView(context: Context, attrs: AttributeSet) : View(context, attrs)
         var y1: Int
         var y2: Int
 
-        val minHeight = dpToPixels(context, 35f)
-
         for (index in 0 until barData.size * 2 - 1) {
             if (index % 2 == 0) { // draw data bar
                 x1 = origin.x + ((index shl 1) + 1) * barWidth
                 x2 = origin.x + ((index shl 1) + 2) * barWidth
                 var barHeight =
                     ((usableViewHeight - getXAxisLabelAndMargin()) * barData[index shr 1].value / maxValueOfData).toInt()
-                if (barHeight < minHeight) barHeight = minHeight.toInt()
+                if (barHeight < minBarHeight) barHeight = minBarHeight.toInt()
                 y1 = origin.y - barHeight
                 y2 = origin.y - marginXAxisAndValueInDp.toInt()
 
@@ -411,7 +411,7 @@ class BarChartView(context: Context, attrs: AttributeSet) : View(context, attrs)
                 x2 = origin.x + ((index shl 1) + 2) * barWidth
                 var barHeight =
                     ((usableViewHeight - getXAxisLabelAndMargin()) * barData[index shr 1].value / maxValueOfData).toInt()
-                if (barHeight < minHeight) barHeight = minHeight.toInt()
+                if (barHeight < minBarHeight) barHeight = minBarHeight.toInt()
                 y1 = origin.y - barHeight
                 y2 = origin.y - marginXAxisAndValueInDp.toInt()
 

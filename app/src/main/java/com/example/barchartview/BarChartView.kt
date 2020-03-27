@@ -1,6 +1,5 @@
 package com.example.barchartview
 
-import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.*
 import android.os.Looper
@@ -13,7 +12,6 @@ import android.view.View
 import androidx.core.content.res.ResourcesCompat
 import java.text.DecimalFormat
 import kotlin.math.sqrt
-
 
 class BarChartView(context: Context, attrs: AttributeSet) : View(context, attrs) {
 
@@ -147,6 +145,7 @@ class BarChartView(context: Context, attrs: AttributeSet) : View(context, attrs)
     private var currentMonthBarIndex: Int = -1
 
 
+    private var axisStartX = 0
     private var tapDownX = 0f
     private var tapDownY = 0f
     private var lastScrollPos = 0f
@@ -169,18 +168,23 @@ class BarChartView(context: Context, attrs: AttributeSet) : View(context, attrs)
 
                 if (barData.size <= maxVisibleBarCount) return true
 
-                if (lastScrollPosInDp >= barAxisWidth) {
+                if (lastScrollPosInDp >= barAxisWidth) { // left scroll
+                    //   axisStartX = barAxisWidth
                     if (e1.x < e2.x) {
                         lastScrollPos += distanceX
+                        axisStartX += distanceX.toInt()
                         scrollX = lastScrollPos.toInt()
                     }
-                } else if (lastScrollPosInDp <= 0) {
+                } else if (lastScrollPosInDp <= 0) { // right scroll
+                    //axisStartX = 0
                     if (e1.x > e2.x) {
                         lastScrollPos += distanceX
+                        axisStartX += distanceX.toInt()
                         scrollX = lastScrollPos.toInt()
                     }
                 } else {
                     lastScrollPos += distanceX
+                    axisStartX += distanceX.toInt()
                     scrollX = lastScrollPos.toInt()
                 }
 
@@ -230,7 +234,7 @@ class BarChartView(context: Context, attrs: AttributeSet) : View(context, attrs)
         }
 
         marginXAxisAndValueInDp = dpToPixels(context, 10f)
-        marginYAxisAndValueInDp = dpToPixels(context, 35f)
+        marginYAxisAndValueInDp = dpToPixels(context, 20f)
         defaultBarWidth = dpToPixels(context, 15f).toInt()
         minBarHeight = dpToPixels(context, 35f).toInt()
 
@@ -315,6 +319,7 @@ class BarChartView(context: Context, attrs: AttributeSet) : View(context, attrs)
             else -> defaultSize
         }
 
+        axisStartX = paddingLeft + maxWidthOfYAxisText + marginYAxisAndValueInDp.toInt()
         setMeasuredDimension(width, height)
     }
 
@@ -372,7 +377,7 @@ class BarChartView(context: Context, attrs: AttributeSet) : View(context, attrs)
                 x2 = origin.x + ((index shl 1) + 2) * barWidth
                 var barHeight =
                     ((usableViewHeight - getXAxisLabelAndMargin()) * barData[index shr 1].value / maxValueOfData).toInt()
-                if (barHeight < minBarHeight) barHeight = minBarHeight.toInt()
+                if (barHeight < minBarHeight) barHeight = minBarHeight
                 y1 = origin.y - barHeight
                 y2 = origin.y - marginXAxisAndValueInDp.toInt()
 
@@ -503,6 +508,16 @@ class BarChartView(context: Context, attrs: AttributeSet) : View(context, attrs)
         val dataInterval: Float = maxValueOfData / maxValueCountOnYAxis
         var valueToBeShown = maxValueOfData
 
+        paint.color = Color.parseColor("#ffffff")
+        canvas.drawRect(
+            axisStartX - maxWidthOfYAxisText - marginYAxisAndValueInDp - 15,
+            origin.y - height.toFloat(),
+            axisStartX - marginYAxisAndValueInDp + 15,
+            origin.y.toFloat() + marginXAxisAndValueInDp + maxHeightOfXAxisText,
+            paint
+        )
+
+
         //draw all texts from top to bottom
         for (index in 0 until maxValueCountOnYAxis) {
             val string = getFormattedValue(valueToBeShown)
@@ -512,9 +527,10 @@ class BarChartView(context: Context, attrs: AttributeSet) : View(context, attrs)
             val y =
                 (origin.y - usableViewHeight) + yAxisValueInterval * index + (bounds.height() shl 1)
 
+
             canvas.drawText(
                 string,
-                origin.x - bounds.width() - marginYAxisAndValueInDp,
+                axisStartX - bounds.width() - marginYAxisAndValueInDp,
                 y.toFloat(),
                 textPaint
             )

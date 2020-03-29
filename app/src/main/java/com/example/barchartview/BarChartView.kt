@@ -5,6 +5,7 @@ import android.graphics.*
 import android.os.Looper
 import android.util.AttributeSet
 import android.util.DisplayMetrics
+import android.util.Log
 import android.util.TypedValue
 import android.view.GestureDetector
 import android.view.MotionEvent
@@ -164,19 +165,16 @@ class BarChartView(context: Context, attrs: AttributeSet) : View(context, attrs)
                 distanceX: Float,
                 distanceY: Float
             ): Boolean {
-                val lastScrollPosInDp = dpToPixels(context, lastScrollPos)
-
                 if (barData.size <= maxVisibleBarCount) return true
 
-                if (lastScrollPosInDp >= barAxisWidth) { // left scroll
-                    //   axisStartX = barAxisWidth
+                if (lastScrollPos + width >= barAxisWidth) {
                     if (e1.x < e2.x) {
                         lastScrollPos += distanceX
                         axisStartX += distanceX.toInt()
                         scrollX = lastScrollPos.toInt()
                     }
-                } else if (lastScrollPosInDp <= 0) { // right scroll
-                    //axisStartX = 0
+                } else if (lastScrollPos <= 0) {
+                    axisStartX = paddingLeft + maxWidthOfYAxisText + marginYAxisAndValueInDp.toInt()
                     if (e1.x > e2.x) {
                         lastScrollPos += distanceX
                         axisStartX += distanceX.toInt()
@@ -328,6 +326,8 @@ class BarChartView(context: Context, attrs: AttributeSet) : View(context, attrs)
         val usableViewWidth = width - paddingLeft - paddingRight
         val origin: Point = getOrigin()
 
+        if (barData.isEmpty()) return
+
         barAndVacantSpaceCount = if (barData.size <= maxVisibleBarCount) {
             (barData.size * 2 shl 1)
         } else {
@@ -339,13 +339,12 @@ class BarChartView(context: Context, attrs: AttributeSet) : View(context, attrs)
         barAxisWidth = origin.x + (barData.size * 4) * barWidth
 
         drawAxis(canvas, origin)
-        if (barData.isEmpty()) return
 
         barRects.clear()
         drawBarChart(canvas, usableViewHeight, origin)
 
         if (isFirstLaunch && barData.size > maxVisibleBarCount && currentMonthBarIndex >= maxVisibleBarCount) {
-            scrollX = barRects[currentMonthBarIndex].left.toInt() / 2
+            scrollX = barRects[currentMonthBarIndex].left.toInt() - width / 2
             isFirstLaunch = false
             lastScrollPos = scrollX.toFloat()
         }
@@ -508,14 +507,14 @@ class BarChartView(context: Context, attrs: AttributeSet) : View(context, attrs)
         val dataInterval: Float = maxValueOfData / maxValueCountOnYAxis
         var valueToBeShown = maxValueOfData
 
-        paint.color = Color.parseColor("#ffffff")
+        /*paint.color = Color.parseColor("#ffffff")
         canvas.drawRect(
             axisStartX - maxWidthOfYAxisText - marginYAxisAndValueInDp - 15,
             origin.y - height.toFloat(),
             axisStartX - marginYAxisAndValueInDp + 15,
             origin.y.toFloat() + marginXAxisAndValueInDp + maxHeightOfXAxisText,
             paint
-        )
+        )*/
 
 
         //draw all texts from top to bottom
@@ -530,7 +529,7 @@ class BarChartView(context: Context, attrs: AttributeSet) : View(context, attrs)
 
             canvas.drawText(
                 string,
-                axisStartX - bounds.width() - marginYAxisAndValueInDp,
+                origin.x - bounds.width() - marginYAxisAndValueInDp,
                 y.toFloat(),
                 textPaint
             )

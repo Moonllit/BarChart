@@ -3,20 +3,42 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:background="#ffffff"
     android:layout_height="match_parent"
+    android:background="#ffffff"
     tools:context=".MainActivity">
 
-    <com.example.barchartview.BarChartView
-        android:layout_margin="10dp"
+  <!--  <com.example.barchartview.BarChartView
         android:id="@+id/chart"
         android:layout_width="0dp"
-        android:paddingEnd="28dp"
+        android:layout_height="300dp"
+        android:layout_margin="10dp"
         android:paddingStart="10dp"
         android:paddingTop="50dp"
-        android:layout_height="300dp"
+        android:paddingEnd="28dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"/>
+        app:layout_constraintTop_toTopOf="parent" />-->
+
+   <!-- <com.example.barchartview.CreditAmountChartView
+        android:id="@+id/credit_amount"
+        android:layout_width="0dp"
+        android:layout_height="200dp"
+        android:layout_marginTop="45dp"
+        android:layout_marginStart="65dp"
+        android:layout_marginEnd="65dp"
+        android:paddingTop="30dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />-->
+
+  <com.example.barchartview.CreditRequestAmountChartView
+      android:id="@+id/credit_request_amount"
+      android:layout_width="0dp"
+      android:layout_height="200dp"
+      android:layout_margin="40dp"
+      android:paddingBottom="40dp"
+      app:layout_constraintEnd_toEndOf="parent"
+      app:layout_constraintStart_toStartOf="parent"
+      app:layout_constraintTop_toTopOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

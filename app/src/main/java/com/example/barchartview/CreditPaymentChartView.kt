@@ -4,17 +4,13 @@ import android.content.Context
 import android.graphics.*
 import android.os.Looper
 import android.util.AttributeSet
-import android.util.DisplayMetrics
-import android.util.Log
-import android.util.TypedValue
 import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.View
 import androidx.core.content.res.ResourcesCompat
-import java.text.DecimalFormat
 import kotlin.math.sqrt
 
-class BarChartView(context: Context, attrs: AttributeSet) : View(context, attrs) {
+class CreditPaymentChartView(context: Context, attrs: AttributeSet) : View(context, attrs) {
 
     constructor(context: Context, attrs: AttributeSet, defStyle: Int) : this(context, attrs)
 
@@ -26,9 +22,9 @@ class BarChartView(context: Context, attrs: AttributeSet) : View(context, attrs)
     var barData: List<BarData> = listOf()
         set(value) {
             field = value
-            maxValueOfData = Float.MIN_VALUE
+            maxValueOfData = Int.MIN_VALUE
             for (bar in barData) {
-                if (maxValueOfData < bar.value) maxValueOfData = bar.value
+                if (maxValueOfData < bar.barValue) maxValueOfData = bar.barValue
             }
             findMaxWidthOfText()
             invalidate()
@@ -127,7 +123,7 @@ class BarChartView(context: Context, attrs: AttributeSet) : View(context, attrs)
     private var marginXAxisAndValueInDp = 0f
     private var marginYAxisAndValueInDp = 0f
 
-    private var maxValueOfData: Float = 0f
+    private var maxValueOfData: Int = 0
 
     private var maxWidthOfYAxisText = 0
     private var maxHeightOfXAxisText = 0
@@ -194,38 +190,51 @@ class BarChartView(context: Context, attrs: AttributeSet) : View(context, attrs)
     init {
         context.theme.obtainStyledAttributes(
             attrs,
-            R.styleable.BarChartView,
+            R.styleable.CreditPaymentChartView,
             0, 0
         ).apply {
             try {
                 selectedBarColor =
-                    getColor(R.styleable.BarChartView_selectedBarColor, Color.parseColor("#53c283"))
-                barColor = getColor(R.styleable.BarChartView_barColor, Color.parseColor("#e1e5e7"))
+                    getColor(
+                        R.styleable.CreditPaymentChartView_selectedBarColor,
+                        Color.parseColor("#53c283")
+                    )
+                barColor = getColor(
+                    R.styleable.CreditPaymentChartView_barColor,
+                    Color.parseColor("#e1e5e7")
+                )
                 outerBarCircleColor = getColor(
-                    R.styleable.BarChartView_outerBarCircleColor,
+                    R.styleable.CreditPaymentChartView_outerBarCircleColor,
                     Color.parseColor("#53c283")
                 )
                 innerBarCircleColor =
                     getColor(
-                        R.styleable.BarChartView_innerBarCircleColor,
+                        R.styleable.CreditPaymentChartView_innerBarCircleColor,
                         Color.parseColor("#ffffff")
                     )
                 textColor =
-                    getColor(R.styleable.BarChartView_textColor, Color.parseColor("#96a6a7"))
+                    getColor(
+                        R.styleable.CreditPaymentChartView_textColor,
+                        Color.parseColor("#96a6a7")
+                    )
                 selectedBarLabelColor =
                     getColor(
-                        R.styleable.BarChartView_selectedBarLabelColor,
+                        R.styleable.CreditPaymentChartView_selectedBarLabelColor,
                         Color.parseColor("#f6f8f9")
                     )
                 selectedBarTextLabelColor =
                     getColor(
-                        R.styleable.BarChartView_selectedBarTextLabelColor,
+                        R.styleable.CreditPaymentChartView_selectedBarTextLabelColor,
                         Color.parseColor("#2c3e50")
                     )
-                barCornerRadius = getDimension(R.styleable.BarChartView_barCornerRadius, 20F)
-                axisStrokeWidth = getDimension(R.styleable.BarChartView_axisStrokeWidth, 3F)
-                maxValueCountOnYAxis = getInteger(R.styleable.BarChartView_maxValueCountOnYAxis, 6)
-                maxVisibleBarCount = getInteger(R.styleable.BarChartView_maxVisibleBarCount, 6)
+                barCornerRadius =
+                    getDimension(R.styleable.CreditPaymentChartView_barCornerRadius, 20F)
+                axisStrokeWidth =
+                    getDimension(R.styleable.CreditPaymentChartView_axisStrokeWidth, 3F)
+                maxValueCountOnYAxis =
+                    getInteger(R.styleable.CreditPaymentChartView_maxValueCountOnYAxis, 6)
+                maxVisibleBarCount =
+                    getInteger(R.styleable.CreditPaymentChartView_maxVisibleBarCount, 6)
             } finally {
                 recycle()
             }
@@ -280,11 +289,11 @@ class BarChartView(context: Context, attrs: AttributeSet) : View(context, attrs)
 
         val bounds = Rect()
         for (bar in barData) {
-            val currentTextWidth = textPaint.measureText((bar.value).toString())
+            val currentTextWidth = textPaint.measureText((bar.barValue).toString())
             if (maxWidthOfYAxisText < currentTextWidth) maxWidthOfYAxisText =
                 currentTextWidth.toInt()
 
-            textPaint.getTextBounds(bar.xAxisName, 0, bar.xAxisName.length, bounds)
+            textPaint.getTextBounds(bar.xAxisValue, 0, bar.xAxisValue.length, bounds)
             if (maxHeightOfXAxisText < bounds.height()) maxHeightOfXAxisText = bounds.height()
         }
     }
@@ -371,11 +380,14 @@ class BarChartView(context: Context, attrs: AttributeSet) : View(context, attrs)
         var y2: Int
 
         for (index in 0 until barData.size * 2 - 1) {
+            val barRectIndex = index * 2
+            val barDataIndex = index / 2
+
             if (index % 2 == 0) { // draw data bar
-                x1 = origin.x + ((index shl 1) + 1) * barWidth
-                x2 = origin.x + ((index shl 1) + 2) * barWidth
+                x1 = origin.x + (barRectIndex + 1) * barWidth
+                x2 = origin.x + (barRectIndex + 2) * barWidth
                 var barHeight =
-                    ((usableViewHeight - getXAxisLabelAndMargin()) * barData[index shr 1].value / maxValueOfData).toInt()
+                    ((usableViewHeight - getXAxisLabelAndMargin()) * barData[barDataIndex].barValue / maxValueOfData).toInt()
                 if (barHeight < minBarHeight) barHeight = minBarHeight
                 y1 = origin.y - barHeight
                 y2 = origin.y - marginXAxisAndValueInDp.toInt()
@@ -403,19 +415,19 @@ class BarChartView(context: Context, attrs: AttributeSet) : View(context, attrs)
                     paint
                 )
 
-                showXAxisLabel(origin, barData[index shr 1].xAxisName, x1 + (x2 - x1) / 2, canvas)
+                showXAxisLabel(origin, barData[barDataIndex].xAxisValue, x1 + (x2 - x1) / 2, canvas)
 
-                if (barData[index shr 1].isCurrentMonth() && clickedBarRectIndex == -1) {
-                    currentMonthBarIndex = index shr 1
-                    drawHighlightBar(canvas, index shr 1)
+                if (barData[barDataIndex].isCurrentMonth() && clickedBarRectIndex == -1) {
+                    currentMonthBarIndex = barDataIndex
+                    drawHighlightBar(canvas, barDataIndex)
                 }
 
             } else { // draw empty bar
-                x1 = origin.x + ((index shl 1) + 1) * barWidth
-                x2 = origin.x + ((index shl 1) + 2) * barWidth
+                x1 = origin.x + (barRectIndex + 1) * barWidth
+                x2 = origin.x + (barRectIndex + 2) * barWidth
                 var barHeight =
-                    ((usableViewHeight - getXAxisLabelAndMargin()) * barData[index shr 1].value / maxValueOfData).toInt()
-                if (barHeight < minBarHeight) barHeight = minBarHeight.toInt()
+                    ((usableViewHeight - getXAxisLabelAndMargin()) * barData[barDataIndex].barValue / maxValueOfData)
+                if (barHeight < minBarHeight) barHeight = minBarHeight
                 y1 = origin.y - barHeight
                 y2 = origin.y - marginXAxisAndValueInDp.toInt()
 
@@ -427,7 +439,7 @@ class BarChartView(context: Context, attrs: AttributeSet) : View(context, attrs)
 
         if (isBarClicked && clickedBarRectIndex >= 0) drawHighlightBar(canvas, clickedBarRectIndex)
 
-        showYAxisLabels(origin, usableViewHeight - getXAxisLabelAndMargin(), canvas)
+        drawYAxisLabels(origin, usableViewHeight - getXAxisLabelAndMargin(), canvas)
     }
 
     private fun drawHighlightBar(canvas: Canvas, barIndex: Int) {
@@ -447,7 +459,7 @@ class BarChartView(context: Context, attrs: AttributeSet) : View(context, attrs)
             paint
         )
 
-        drawHighlightBarLabel(canvas, rect, barData[barIndex].value.toString())
+        drawHighlightBarLabel(canvas, rect, barData[barIndex].barValue.toString())
     }
 
     private fun drawHighlightBarLabel(canvas: Canvas, barRect: RectF, label: String) {
@@ -486,10 +498,6 @@ class BarChartView(context: Context, attrs: AttributeSet) : View(context, attrs)
         )
     }
 
-    private fun getFormattedValue(value: Float): String {
-        val precision = DecimalFormat("0.0")
-        return precision.format(value.toDouble())
-    }
 
     /**
      * Draws Y axis labels and marker points along Y axis.
@@ -498,13 +506,13 @@ class BarChartView(context: Context, attrs: AttributeSet) : View(context, attrs)
      * @param usableViewHeight view height after removing the padding
      * @param canvas           canvas to draw the chart
      */
-    private fun showYAxisLabels(
+    private fun drawYAxisLabels(
         origin: Point,
         usableViewHeight: Int,
         canvas: Canvas
     ) {
         val yAxisValueInterval = usableViewHeight / maxValueCountOnYAxis
-        val dataInterval: Float = maxValueOfData / maxValueCountOnYAxis
+        val dataInterval = maxValueOfData / maxValueCountOnYAxis
         var valueToBeShown = maxValueOfData
 
         /*paint.color = Color.parseColor("#ffffff")
@@ -519,13 +527,12 @@ class BarChartView(context: Context, attrs: AttributeSet) : View(context, attrs)
 
         //draw all texts from top to bottom
         for (index in 0 until maxValueCountOnYAxis) {
-            val string = getFormattedValue(valueToBeShown)
+            val string = valueToBeShown.toString()
 
             val bounds = Rect()
             textPaint.getTextBounds(string, 0, string.length, bounds)
             val y =
                 (origin.y - usableViewHeight) + yAxisValueInterval * index + (bounds.height() shl 1)
-
 
             canvas.drawText(
                 string,
@@ -602,14 +609,5 @@ class BarChartView(context: Context, attrs: AttributeSet) : View(context, attrs)
         }
 
         return -1 // x, y do not lie in our view
-    }
-
-    private fun dpToPixels(context: Context, dpValue: Float): Float {
-        val metrics = context.resources.displayMetrics
-        return TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, dpValue, metrics)
-    }
-
-    private fun pixelsToDp(context: Context, px: Float): Float {
-        return px / (context.resources.displayMetrics.densityDpi.toFloat() / DisplayMetrics.DENSITY_DEFAULT)
     }
 }

@@ -1,16 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <declare-styleable name="BarChartView">
+    <declare-styleable name="BarChartAttributes">
         <attr name="maxVisibleBarCount" format="integer" />
-        <attr name="maxValueCountOnYAxis" format="integer" />
         <attr name="axisStrokeWidth" format="dimension" />
         <attr name="barCornerRadius" format="dimension" />
+        <attr name="textColor" format="color" />
+        <attr name="emptyBarColor" format="color" />
+        <attr name="circleBarColor" format="color" />
+    </declare-styleable>
+
+    <declare-styleable name="CreditPaymentChartView">
+        <attr name="maxValueCountOnYAxis" format="integer" />
+        <attr name="textColor" />
+        <attr name="axisStrokeWidth" />
+        <attr name="barCornerRadius" />
         <attr name="selectedBarColor" format="color" />
         <attr name="barColor" format="color" />
         <attr name="outerBarCircleColor" format="color" />
         <attr name="innerBarCircleColor" format="color" />
-        <attr name="textColor" format="color" />
         <attr name="selectedBarLabelColor" format="color" />
         <attr name="selectedBarTextLabelColor" format="color" />
+        <attr name="maxVisibleBarCount" />
+    </declare-styleable>
+
+    <declare-styleable name="CreditAmountChartView">
+        <attr name="circleBarColor" />
+        <attr name="textColor" />
+        <attr name="emptyBarColor" />
+        <attr name="axisStrokeWidth" />
+        <attr name="barCornerRadius" />
+        <attr name="maxVisibleBarCount" />
+    </declare-styleable>
+
+    <declare-styleable name="CreditRequestAmountChartView">
+        <attr name="emptyBarColor" />
+        <attr name="circleBarColor" />
+        <attr name="textColor" />
+        <attr name="axisStrokeWidth" />
+        <attr name="barCornerRadius" />
     </declare-styleable>
 </resources>
